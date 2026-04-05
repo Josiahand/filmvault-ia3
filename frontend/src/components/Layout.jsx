@@ -1,25 +1,27 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { MovieProvider, useMovies } from "../context/MovieContext";
 import Toast from "./Toast";
 
 const NAV_ITEMS = [
-  { path: "/",          icon: "🏠", label: "Dashboard",  section: "library" },
-  { path: "/tvshows",   icon: "📺", label: "TV Shows",   section: "library" },
-  { path: "/watchlist", icon: "⏳", label: "Watchlist",  section: "library" },
-  { path: "/history",   icon: "✅", label: "Watched",    section: "library" },
-  { path: "/stats",     icon: "📊", label: "Statistics", section: "insights" },
-  { path: "/ai",        icon: "🤖", label: "AI Picks",   section: "insights" },
+  { path:"/",         icon:"🏠", label:"Dashboard",  section:"library"  },
+  { path:"/tvshows",  icon:"📺", label:"TV Shows",   section:"library"  },
+  { path:"/watchlist",icon:"⏳", label:"Watchlist",  section:"library"  },
+  { path:"/history",  icon:"✅", label:"Watched",    section:"library"  },
+  { path:"/stats",    icon:"📊", label:"Statistics", section:"insights" },
+  { path:"/ai",       icon:"🤖", label:"AI Picks",   section:"insights" },
 ];
 
 function SidebarInner() {
-  const { user, logout } = useAuth();
+  const { user, logout }            = useAuth();
   const { movies, fetchMovies, toast } = useMovies();
-  const navigate  = useNavigate();
-  const location  = useLocation();
+  const navigate                    = useNavigate();
+  const location                    = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => { fetchMovies(); }, [fetchMovies]);
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
   const counts = {
     "/watchlist": movies.filter(m => m.status === "watchlist").length,
@@ -33,25 +35,43 @@ function SidebarInner() {
   return (
     <div className="app-layout">
 
-      {/* ── SIDEBAR (desktop) ── */}
-      <aside className="sidebar">
+      {/* Mobile hamburger button */}
+      <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>☰</button>
+
+      {/* Sidebar overlay (mobile) */}
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? "visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      {/* ── SIDEBAR ── */}
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-logo">🎬 FilmVault</div>
 
         <nav className="sidebar-nav">
           <div className="nav-section">
             <div className="nav-section-label">Library</div>
             {libraryItems.map(({ path, icon, label }) => (
-              <button key={path} className={"nav-link " + (location.pathname === path ? "active" : "")} onClick={() => navigate(path)}>
+              <button
+                key={path}
+                className={`nav-link ${location.pathname === path ? "active" : ""}`}
+                onClick={() => navigate(path)}
+              >
                 <span className="icon">{icon}</span>
                 {label}
                 {counts[path] > 0 && <span className="nav-badge">{counts[path]}</span>}
               </button>
             ))}
           </div>
+
           <div className="nav-section">
             <div className="nav-section-label">Insights</div>
             {insightItems.map(({ path, icon, label }) => (
-              <button key={path} className={"nav-link " + (location.pathname === path ? "active" : "")} onClick={() => navigate(path)}>
+              <button
+                key={path}
+                className={`nav-link ${location.pathname === path ? "active" : ""}`}
+                onClick={() => navigate(path)}
+              >
                 <span className="icon">{icon}</span>
                 {label}
               </button>
@@ -61,7 +81,9 @@ function SidebarInner() {
 
         <div className="sidebar-footer">
           <div className="user-chip">
-            <div className="user-avatar">{user?.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}</div>
+            <div className="user-avatar">
+              {user?.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
+            </div>
             <div className="user-info">
               <div className="user-name">{user?.username || "User"}</div>
               <div className="user-email">{user?.email}</div>
@@ -72,12 +94,18 @@ function SidebarInner() {
       </aside>
 
       {/* ── MAIN ── */}
-      <main className="main-content"><Outlet /></main>
+      <main className="main-content">
+        <Outlet />
+      </main>
 
       {/* ── BOTTOM NAV (mobile) ── */}
       <nav className="bottom-nav">
         {NAV_ITEMS.map(({ path, icon, label }) => (
-          <button key={path} className={"bottom-nav-item " + (location.pathname === path ? "active" : "")} onClick={() => navigate(path)}>
+          <button
+            key={path}
+            className={`bottom-nav-item ${location.pathname === path ? "active" : ""}`}
+            onClick={() => navigate(path)}
+          >
             <span className="bnav-icon">{icon}</span>
             {label}
           </button>

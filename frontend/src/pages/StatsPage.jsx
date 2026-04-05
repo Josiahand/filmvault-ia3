@@ -41,7 +41,7 @@ export default function StatsPage() {
   ];
 
   return (
-    <>
+    <div className="page-body">
       <div className="page-header">
         <div className="page-title">Statistics</div>
         <div className="page-subtitle">Your movie watching insights</div>
@@ -64,7 +64,7 @@ export default function StatsPage() {
           <div className="empty-sub">Mark some movies as Watched to see your stats</div>
         </div>
       ) : (
-        <>
+        <div className="page-body">
           {/* Genre chart */}
           {genreList.length > 0 && (
             <div className="chart-card">
@@ -106,6 +106,6 @@ export default function StatsPage() {
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }
