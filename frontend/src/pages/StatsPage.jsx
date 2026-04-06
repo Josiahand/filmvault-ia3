@@ -20,17 +20,19 @@ export default function StatsPage() {
   const watched = movies.filter((m) => m.status === "watched");
   const wlCount = movies.filter((m) => m.status === "watchlist").length;
   const rated = watched.filter((m) => m.rating > 0);
+
   const localAvg = rated.length
     ? (
         rated.reduce((s, m) => s + m.rating, 0) / rated.length
       ).toFixed(1)
     : "—";
 
-  // Genre counts
+  // Genre stats
   const genreMap = {};
   watched.forEach((m) => {
     if (m.genre) genreMap[m.genre] = (genreMap[m.genre] || 0) + 1;
   });
+
   const genreList = Object.entries(genreMap).sort((a, b) => b[1] - a[1]);
   const maxGenre = genreList[0]?.[1] || 1;
 
@@ -39,21 +41,23 @@ export default function StatsPage() {
     star: s,
     count: watched.filter((m) => m.rating === s).length,
   }));
+
   const maxRating = Math.max(...ratingDist.map((r) => r.count), 1);
 
   const topStats = [
     { value: watched.length, label: "Movies Watched", cls: "c-accent" },
     { value: wlCount, label: "On Watchlist", cls: "c-blue" },
-    { value: localAvg, label: "Avg Rating", cls: "c-green" },
+    { value: localAvg, label: "Average Rating", cls: "c-green" },
     {
       value: genreList[0]?.[0] || "—",
-      label: "Fav Genre",
+      label: "Favorite Genre",
       cls: "c-purple",
     },
   ];
 
   return (
     <div className="page-body">
+      {/* Header */}
       <div className="page-header">
         <div className="page-title">Statistics</div>
         <div className="page-subtitle">
@@ -61,7 +65,7 @@ export default function StatsPage() {
         </div>
       </div>
 
-      {/* Stat cards */}
+      {/* Stat Cards */}
       <div className="stats-cards">
         {topStats.map((s, i) => (
           <div
@@ -75,21 +79,22 @@ export default function StatsPage() {
         ))}
       </div>
 
+      {/* Empty State */}
       {watched.length === 0 ? (
         <div className="empty">
-          <div className="empty-icon">📊</div>
-          <div className="empty-title">No data yet</div>
+          <div className="empty-icon"></div>
+          <div className="empty-title">No data available</div>
           <div className="empty-sub">
-            Mark some movies as Watched to see your stats
+            Mark movies as watched to view statistics
           </div>
         </div>
       ) : (
         <div className="stats-content">
-          {/* Genre chart */}
+          {/* Genre Chart */}
           {genreList.length > 0 && (
             <div className="chart-card">
               <div className="chart-heading">
-                📊 Movies by Genre
+                Movies by Genre
               </div>
               <div className="bar-chart">
                 {genreList.map(([genre, count]) => (
@@ -110,10 +115,10 @@ export default function StatsPage() {
             </div>
           )}
 
-          {/* Rating distribution */}
+          {/* Rating Chart */}
           <div className="chart-card">
             <div className="chart-heading">
-              ⭐ Rating Distribution
+              Rating Distribution
             </div>
             <div className="bar-chart">
               {ratingDist.map(({ star, count }) => (
