@@ -16,7 +16,7 @@ export default function StarRating({ value = 0, onChange, size = "sm", readOnly 
           onMouseEnter={() => !readOnly && setHover(s)}
           onMouseLeave={() => !readOnly && setHover(0)}
         >
-          *
+          ★
         </span>
       ))}
     </div>

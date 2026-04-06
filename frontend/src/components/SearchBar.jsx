@@ -47,7 +47,7 @@ export default function SearchBar() {
     <>
       <div className="search-wrap" ref={wrapRef}>
         <div className="search-input-wrap">
-          <span className="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <span className="search-icon">🔍</span>
           <input
             className="search-field"
             placeholder="Search movies & TV shows…"
@@ -71,7 +71,7 @@ export default function SearchBar() {
                   {r.poster_path ? (
                     <img className="result-thumb" src={posterUrl(r.poster_path)} alt={r.title} />
                   ) : (
-                    <div className="result-thumb">{r.mediaType === "tv" ? "TV" : "Film"}</div>
+                    <div className="result-thumb">{r.mediaType === "tv" ? "📺" : "🎬"}</div>
                   )}
                   <div className="result-info">
                     <div className="result-title">{r.title}</div>
@@ -85,17 +85,17 @@ export default function SearchBar() {
                         fontWeight: 700,
                         marginRight: 6,
                       }}>
-                        {r.mediaType === "tv" ? "TV" : "Movie"}
+                        {r.mediaType === "tv" ? "📺 TV" : "🎬 Movie"}
                       </span>
                       {r.year}
                       {r.totalSeasons && ` · ${r.totalSeasons} seasons`}
                     </div>
                   </div>
                   {inLib && (
-                    <span style={{ fontSize:"0.72rem", color:"var(--green)", fontWeight:700, flexShrink:0 }}>Added</span>
+                    <span style={{ fontSize:"0.72rem", color:"var(--green)", fontWeight:700, flexShrink:0 }}>✓ Added</span>
                   )}
                   {!inLib && (
-                    <span style={{ fontSize:"0.72rem", color:"var(--text3)", flexShrink:0 }}>Add +</span>
+                    <span style={{ fontSize:"0.72rem", color:"var(--text3)", flexShrink:0 }}>Click to add →</span>
                   )}
                 </div>
               );

@@ -3,23 +3,21 @@ import api from "../utils/api";
 import { useMovies } from "../context/MovieContext";
 
 export default function StatsPage() {
-  const { movies = [] } = useMovies() || {};
-  if (!movies) {
-  return <div>Loading...</div>;}
+  const { movies } = useMovies();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  api.get("/movies/stats")
-    .then(({ data }) => {
-      setStats(data?.stats || null);
-    })
-    .catch(() => {})
-    .finally(() => setLoading(false));
-}, [movies]);
+    api.get("/movies/stats")
+      .then(({ data }) => {
+        setStats(data.stats);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [movies]);
 
   // Local fallback stats
-  const watched = (movies || []).filter((m) => m.status === "watched");
+  const watched = movies.filter((m) => m.status === "watched");
   const wlCount = movies.filter((m) => m.status === "watchlist").length;
   const rated = watched.filter((m) => m.rating > 0);
 
@@ -81,11 +79,13 @@ export default function StatsPage() {
         ))}
       </div>
 
+      {/* Empty State */}
       {watched.length === 0 ? (
         <div className="empty">
-          <div className="empty-title">No data yet</div>
+          <div className="empty-icon"></div>
+          <div className="empty-title">No data available</div>
           <div className="empty-sub">
-            Mark some movies as Watched to see your stats
+            Mark movies as watched to view statistics
           </div>
         </div>
       ) : (
@@ -127,7 +127,7 @@ export default function StatsPage() {
                     className="bar-lbl"
                     style={{ color: "var(--accent)" }}
                   >
-                    {star} star{star !== 1 ? "s" : ""}
+                    {star} Stars
                   </span>
                   <div className="bar-track">
                     <div

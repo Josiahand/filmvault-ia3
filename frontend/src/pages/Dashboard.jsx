@@ -3,8 +3,10 @@ import { useMovies } from "../context/MovieContext";
 import SearchBar from "../components/SearchBar";
 import MovieGrid from "../components/MovieGrid";
 import BrowseDetailPopup from "../components/BrowseDetailPopup";
-import { posterUrl, fetchPopular } from "../utils/tmdb";
+import { posterUrl } from "../utils/tmdb";
 
+const TMDB_KEY  = import.meta.env.VITE_TMDB_API_KEY;
+const TMDB_BASE = "https://api.themoviedb.org/3";
 
 const GENRES = [
   { id:"all", name:"All" }, { id:28, name:"Action" }, { id:35, name:"Comedy" },
@@ -20,7 +22,14 @@ const SORT_OPTIONS = [
   { value:"revenue.desc",      label:"Box Office" },
 ];
 
-// fetchPopular imported from utils/tmdb.js
+async function fetchTMDb(endpoint, params={}) {
+  if (!TMDB_KEY || TMDB_KEY === "your_tmdb_key_here") return null;
+  const url = new URL(`${TMDB_BASE}${endpoint}`);
+  url.searchParams.set("api_key", TMDB_KEY);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
+  const res = await fetch(url);
+  return res.json();
+}
 
 // ── HERO SECTION ─────────────────────────────────────────────────────────────
 function HeroSection({ movies, onAddToList }) {
@@ -28,7 +37,7 @@ function HeroSection({ movies, onAddToList }) {
 
   useEffect(() => {
     if (!TMDB_KEY || TMDB_KEY === "your_tmdb_key_here") return;
-    fetchPopular("movie", { sort_by:"popularity.desc", page:1, "vote_count.gte":100 }).then(data => {
+    fetchTMDb("/movie/popular", { page:1 }).then(data => {
       const picks = data?.results?.filter(m => m.backdrop_path);
       if (picks?.length) setHero(picks[Math.floor(Math.random() * Math.min(5, picks.length))]);
     });
@@ -53,10 +62,10 @@ function HeroSection({ movies, onAddToList }) {
       <div className="hero-overlay-bottom" />
 
       <div className="hero-content">
-        <div className="hero-badge">Featured Today</div>
+        <div className="hero-badge">⭐ Featured Today</div>
         <div className="hero-title">{hero.title}</div>
         <div className="hero-meta">
-          <div className="hero-rating">{score}%</div>
+          <div className="hero-rating">⭐ {score}%</div>
           {year && <div className="hero-year">{year}</div>}
           <div className="hero-genre">Movie</div>
         </div>
@@ -68,10 +77,10 @@ function HeroSection({ movies, onAddToList }) {
             className="hero-watch-btn"
             onClick={() => onAddToList(hero)}
           >
-            Add to My List
+            ➕ Add to My List
           </button>
           <button className="hero-add-btn" onClick={() => onAddToList(hero)}>
-            More Info
+            ℹ️ More Info
           </button>
         </div>
       </div>
@@ -99,9 +108,10 @@ export default function Dashboard() {
 
   const fetchBrowse = async () => {
     setLoading(true); setBrowseItems([]);
+    const endpoint = tab === "tv" ? "/discover/tv" : "/discover/movie";
     const params = { sort_by: sortBy, page, "vote_count.gte": 100 };
     if (genre !== "all") params.with_genres = genre;
-    const data = await fetchPopular(tab === "tv" ? "tv" : "movie", params);
+    const data = await fetchTMDb(endpoint, params);
     if (data?.results) { setBrowseItems(data.results); setTotalPages(Math.min(data.total_pages, 20)); }
     setLoading(false);
   };
@@ -133,9 +143,9 @@ export default function Dashboard() {
         {/* Tabs */}
         <div className="browse-tabs">
           {[
-            { key:"movies",    label:"Movies" },
-            { key:"tv",        label:"TV Shows" },
-            { key:"mylibrary", label:`My Library (${movies.length})` },
+            { key:"movies",    label:"🎬 Movies" },
+            { key:"tv",        label:"📺 TV Shows" },
+            { key:"mylibrary", label:`📚 My Library (${movies.length})` },
           ].map(({ key, label }) => (
             <button key={key} className={`browse-tab ${tab===key?"active":""}`} onClick={() => handleTab(key)}>
               {label}
@@ -147,7 +157,7 @@ export default function Dashboard() {
         {tab === "mylibrary" && (
           <MovieGrid
             movies={movies}
-            emptyIcon={null}
+            emptyIcon="🎬"
             emptyTitle="Your library is empty"
             emptyText="Browse Movies or TV Shows and click any poster to add!"
           />
@@ -188,17 +198,17 @@ export default function Dashboard() {
                       <div className="browse-poster-wrap">
                         {item.poster_path
                           ? <img className="browse-poster" src={posterUrl(item.poster_path)} alt={title} loading="lazy" />
-                          : <div className="browse-poster-placeholder">{""}</div>
+                          : <div className="browse-poster-placeholder">{type==="tv"?"📺":"🎬"}</div>
                         }
                         <div className="browse-score" style={{ borderColor:scoreColor, color:scoreColor }}>
                           {score}<span style={{ fontSize:"0.5rem" }}>%</span>
                         </div>
                         {inLib && (
-                          <div style={{ position:"absolute", top:8, right:8, background:"rgba(16,185,129,0.9)", borderRadius:"50%", width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.85rem" }}>"In Library"</div>
+                          <div style={{ position:"absolute", top:8, right:8, background:"rgba(16,185,129,0.9)", borderRadius:"50%", width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.85rem" }}>✓</div>
                         )}
                         <div className="browse-overlay">
                           <div style={{ width:"100%", textAlign:"center", color:"white", fontSize:"0.8rem", fontWeight:600, padding:"5px 8px", background:"rgba(245,158,11,0.15)", borderRadius:"8px", border:"1px solid rgba(245,158,11,0.3)", backdropFilter:"blur(8px)" }}>
-                            {inLib ? "Edit" : "Details"}
+                            {inLib ? "✏️ Edit" : "🔍 Details"}
                           </div>
                         </div>
                       </div>
@@ -214,7 +224,7 @@ export default function Dashboard() {
 
             {!loading && browseItems.length === 0 && (
               <div className="empty">
-                
+                <div className="empty-icon">🔑</div>
                 <div className="empty-title">TMDb API Key needed</div>
                 <div className="empty-sub">Add VITE_TMDB_API_KEY to frontend .env to browse</div>
               </div>
@@ -222,9 +232,9 @@ export default function Dashboard() {
 
             {totalPages > 1 && !loading && browseItems.length > 0 && (
               <div className="browse-pagination">
-                <button className="btn btn-ghost btn-sm" disabled={page<=1} onClick={() => setPage(p=>p-1)}>Prev</button>
+                <button className="btn btn-ghost btn-sm" disabled={page<=1} onClick={() => setPage(p=>p-1)}>← Prev</button>
                 <span style={{ color:"var(--text2)", fontSize:"0.88rem" }}>Page {page} of {totalPages}</span>
-                <button className="btn btn-ghost btn-sm" disabled={page>=totalPages} onClick={() => setPage(p=>p+1)}>Next</button>
+                <button className="btn btn-ghost btn-sm" disabled={page>=totalPages} onClick={() => setPage(p=>p+1)}>Next →</button>
               </div>
             )}
           </>

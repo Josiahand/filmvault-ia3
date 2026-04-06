@@ -11,7 +11,7 @@ export default function HistoryPage() {
       </div>
       {loading
         ? <div className="empty"><div className="spinner" style={{ width:36,height:36,borderWidth:3,margin:"0 auto" }} /></div>
-        : <MovieGrid movies={watched} emptyIcon={null} emptyTitle="No watched movies yet" emptyText="Open a movie from your library and mark it as Watched" />
+        : <MovieGrid movies={watched} emptyIcon="✅" emptyTitle="No watched movies yet" emptyText="Open a movie from your library and mark it as Watched" />
       }
     </div>
   );
