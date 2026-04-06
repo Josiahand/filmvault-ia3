@@ -28,7 +28,7 @@ export const MovieProvider = ({ children }) => {
     try {
       const { data } = await api.post("/movies", movieData);
       setMovies((prev) => [data.movie, ...prev]);
-      showToast(`"${data.movie.title}" added to your list ✅`);
+      showToast(`"${data.movie.title}" added to your list`);
       return data.movie;
     } catch (e) {
       const msg = e.response?.data?.message || "Failed to add movie";
@@ -41,7 +41,7 @@ export const MovieProvider = ({ children }) => {
     try {
       const { data } = await api.put(`/movies/${id}`, updates);
       setMovies((prev) => prev.map((m) => (m._id === id ? data.movie : m)));
-      showToast("Saved! 💾");
+      showToast("Saved");
       return data.movie;
     } catch (e) {
       showToast("Failed to update", "error");

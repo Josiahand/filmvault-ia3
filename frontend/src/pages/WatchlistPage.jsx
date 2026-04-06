@@ -13,7 +13,7 @@ export default function WatchlistPage() {
       <SearchBar />
       {loading
         ? <div className="empty"><div className="spinner" style={{ width:36,height:36,borderWidth:3,margin:"0 auto" }} /></div>
-        : <MovieGrid movies={watchlist} emptyIcon="⏳" emptyTitle="Your watchlist is empty" emptyText="Search for movies and add them to your watchlist" />
+        : <MovieGrid movies={watchlist} emptyIcon={null} emptyTitle="Your watchlist is empty" emptyText="Search for movies and add them to your watchlist" />
       }
     </div>
   );
