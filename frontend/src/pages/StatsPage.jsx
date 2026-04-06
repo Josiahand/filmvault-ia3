@@ -127,7 +127,7 @@ export default function StatsPage() {
                     className="bar-lbl"
                     style={{ color: "var(--accent)" }}
                   >
-                    {"★".repeat(star)}
+                    {star} Stars
                   </span>
                   <div className="bar-track">
                     <div
