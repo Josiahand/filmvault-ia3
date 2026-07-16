@@ -1,9 +1,13 @@
-const express = require("express");
-const router = express.Router();
-const jwt = require("jsonwebtoken");
+const express  = require("express");
+const router   = express.Router();
+const jwt      = require("jsonwebtoken");
 const { body, validationResult } = require("express-validator");
-const User = require("../models/User");
+const { OAuth2Client } = require("google-auth-library");
+const User     = require("../models/User");
 const { protect } = require("../middleware/auth");
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 
 // ── Helper: generate JWT ──────────────────────────────────────────────────────
 const generateToken = (id) =>
@@ -124,4 +128,123 @@ router.get("/me", protect, async (req, res) => {
   });
 });
 
+// ── @route  POST /api/auth/google ─────────────────────────────────────────────
+// ── @desc   Sign in / up with Google credential token
+// ── @access Public
+router.post("/google", async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) {
+    return res.status(400).json({ success: false, message: "Google credential is required" });
+  }
+
+  try {
+    // Verify the ID token Google sent to the frontend
+    const ticket = await googleClient.verifyIdToken({
+      idToken:  credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+
+    const { sub: googleId, email, name, picture } = payload;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Google account has no email" });
+    }
+
+    // ── Find or create user ───────────────────────────────────
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+    if (user) {
+      // Existing user — update Google fields if they signed up via email before
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.picture  = picture || user.picture;
+        user.name     = name    || user.name;
+        await user.save();
+      }
+    } else {
+      // New user — auto-generate a unique username from their name/email
+      const base     = (name || email.split("@")[0]).replace(/\s+/g, "_").toLowerCase().slice(0, 24);
+      let   username = base;
+      let   attempt  = 0;
+      while (await User.findOne({ username })) {
+        attempt++;
+        username = `${base}${attempt}`;
+      }
+
+      user = await User.create({
+        googleId,
+        email,
+        name:     name    || "",
+        picture:  picture || "",
+        username,
+        // No password — Google-only account
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Google sign-in successful",
+      token: generateToken(user._id),
+      user: {
+        id:       user._id,
+        username: user.username,
+        email:    user.email,
+        name:     user.name,
+        picture:  user.picture,
+      },
+    });
+  } catch (error) {
+    console.error("[POST /auth/google] Error:", error.message);
+    res.status(401).json({ success: false, message: "Google authentication failed: " + error.message });
+  }
+});
+
+// ── @route  POST /api/auth/google-profile ─────────────────────────────────────
+// ── @desc   Sign in / up using raw Google profile data (from userinfo endpoint)
+// ── @access Public
+router.post("/google-profile", async (req, res) => {
+  const { googleId, email, name, picture } = req.body;
+
+  if (!googleId || !email) {
+    return res.status(400).json({ success: false, message: "Google profile data is incomplete" });
+  }
+
+  try {
+    // Find by googleId OR email (handles users who signed up with email before)
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+    if (user) {
+      // Link Google to existing email-only account
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.picture  = picture || user.picture;
+        user.name     = name    || user.name;
+        await user.save();
+      }
+    } else {
+      // Brand new user — derive a unique username
+      const base     = (name || email.split("@")[0]).replace(/\s+/g, "_").toLowerCase().slice(0, 24);
+      let   username = base;
+      let   attempt  = 0;
+      while (await User.findOne({ username })) {
+        attempt++;
+        username = `${base}${attempt}`;
+      }
+
+      user = await User.create({ googleId, email, name: name || "", picture: picture || "", username });
+    }
+
+    res.json({
+      success: true,
+      token:   generateToken(user._id),
+      user:    { id: user._id, username: user.username, email: user.email, name: user.name, picture: user.picture },
+    });
+  } catch (error) {
+    console.error("[POST /auth/google-profile] Error:", error.message);
+    res.status(500).json({ success: false, message: "Server error during Google sign-in: " + error.message });
+  }
+});
+
 module.exports = router;
+

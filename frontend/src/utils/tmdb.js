@@ -39,6 +39,33 @@ export const searchAll = async (query) => {
 
 export const searchMovies = searchAll;
 
+export const tmdb = async (endpoint, params = {}) => {
+  if (!TMDB_KEY || TMDB_KEY === "your_tmdb_key_here") return null;
+  const url = new URL(`${BASE}${endpoint}`);
+  url.searchParams.set("api_key", TMDB_KEY);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const res = await fetch(url);
+  return res.ok ? res.json() : null;
+};
+
+export const profileUrl = (path, size = "w185") => {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  return `https://image.tmdb.org/t/p/${size}${path}`;
+};
+
+export const stillUrl = (path, size = "w300") => {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  return `https://image.tmdb.org/t/p/${size}${path}`;
+};
+
+export const backdropUrl = (path, size = "original") => {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  return `https://image.tmdb.org/t/p/${size}${path}`;
+};
+
 export const posterUrl = (path, size = "w342") => {
   if (!path) return null;
   if (path.startsWith("http")) return path;

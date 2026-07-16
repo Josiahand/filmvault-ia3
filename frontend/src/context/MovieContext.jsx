@@ -44,7 +44,23 @@ export const MovieProvider = ({ children }) => {
       showToast("Saved! 💾");
       return data.movie;
     } catch (e) {
-      showToast("Failed to update", "error");
+      const msg = e.response?.data?.message || "Failed to update";
+      console.error("[updateMovie] Error:", msg, e.response?.data);
+      showToast(msg, "error");
+      throw e;
+    }
+  };
+
+  // Toggle a single episode watched state — PATCH /:id/episode
+  const toggleEpisode = async (id, episodeKey, watched) => {
+    try {
+      const { data } = await api.patch(`/movies/${id}/episode`, { episodeKey, watched });
+      setMovies((prev) => prev.map((m) => (m._id === id ? data.movie : m)));
+      return data.movie;
+    } catch (e) {
+      const msg = e.response?.data?.message || "Failed to save episode";
+      console.error("[toggleEpisode] Error:", msg, e.response?.data);
+      showToast(msg, "error");
       throw e;
     }
   };
@@ -60,7 +76,7 @@ export const MovieProvider = ({ children }) => {
   };
 
   return (
-    <MovieContext.Provider value={{ movies, loading, fetchMovies, addMovie, updateMovie, deleteMovie, toast }}>
+    <MovieContext.Provider value={{ movies, loading, fetchMovies, addMovie, updateMovie, toggleEpisode, deleteMovie, toast }}>
       {children}
     </MovieContext.Provider>
   );

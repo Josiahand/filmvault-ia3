@@ -1,249 +1,252 @@
-import { useState, useEffect } from "react";
-import { useMovies } from "../context/MovieContext";
-import SearchBar from "../components/SearchBar";
-import MovieGrid from "../components/MovieGrid";
-import BrowseDetailPopup from "../components/BrowseDetailPopup";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { posterUrl } from "../utils/tmdb";
 
 const TMDB_KEY  = import.meta.env.VITE_TMDB_API_KEY;
 const TMDB_BASE = "https://api.themoviedb.org/3";
 
-const GENRES = [
-  { id:"all", name:"All" }, { id:28, name:"Action" }, { id:35, name:"Comedy" },
-  { id:18, name:"Drama" }, { id:27, name:"Horror" }, { id:878, name:"Sci-Fi" },
-  { id:10749, name:"Romance" }, { id:16, name:"Animation" }, { id:80, name:"Crime" },
-  { id:99, name:"Documentary" }, { id:14, name:"Fantasy" }, { id:53, name:"Thriller" },
-];
+const GENRE_MAP = {
+  28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy",
+  80: "Crime", 18: "Drama", 14: "Fantasy", 27: "Horror",
+  10749: "Romance", 878: "Sci-Fi", 53: "Thriller", 99: "Documentary",
+};
 
-const SORT_OPTIONS = [
-  { value:"popularity.desc",   label:"Most Popular" },
-  { value:"vote_average.desc", label:"Top Rated" },
-  { value:"release_date.desc", label:"Newest First" },
-  { value:"revenue.desc",      label:"Box Office" },
-];
-
-async function fetchTMDb(endpoint, params={}) {
+async function fetchTMDb(endpoint, params = {}) {
   if (!TMDB_KEY || TMDB_KEY === "your_tmdb_key_here") return null;
   const url = new URL(`${TMDB_BASE}${endpoint}`);
   url.searchParams.set("api_key", TMDB_KEY);
-  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   const res = await fetch(url);
   return res.json();
 }
 
-// ── HERO SECTION ─────────────────────────────────────────────────────────────
-function HeroSection({ movies, onAddToList }) {
-  const [hero, setHero] = useState(null);
+// ── CINEMATIC HERO BANNER ─────────────────────────────────────
+function HeroBanner({ onOpenPopup }) {
+  const [slides,  setSlides]  = useState([]);
+  const [current, setCurrent] = useState(0);
+  const [fading,  setFading]  = useState(false);
+  const intervalRef = useRef(null);
 
   useEffect(() => {
-    if (!TMDB_KEY || TMDB_KEY === "your_tmdb_key_here") return;
-    fetchTMDb("/movie/popular", { page:1 }).then(data => {
-      const picks = data?.results?.filter(m => m.backdrop_path);
-      if (picks?.length) setHero(picks[Math.floor(Math.random() * Math.min(5, picks.length))]);
+    fetchTMDb("/movie/popular", { page: 1 }).then(data => {
+      const picks = (data?.results || []).filter(m => m.backdrop_path).slice(0, 5);
+      setSlides(picks);
     });
   }, []);
 
-  if (!hero) return null;
+  const goTo = useCallback((idx, slidesLen) => {
+    setFading(true);
+    setTimeout(() => { setCurrent(idx); setFading(false); }, 350);
+    // Reset timer
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setFading(true);
+      setTimeout(() => { setCurrent(prev => (prev + 1) % slidesLen); setFading(false); }, 350);
+    }, 6000);
+  }, []);
 
-  const score = Math.round((hero.vote_average || 0) * 10);
-  const year  = hero.release_date?.split("-")[0];
+  useEffect(() => {
+    if (slides.length === 0) return;
+    intervalRef.current = setInterval(() => {
+      setFading(true);
+      setTimeout(() => { setCurrent(prev => (prev + 1) % slides.length); setFading(false); }, 350);
+    }, 6000);
+    return () => clearInterval(intervalRef.current);
+  }, [slides.length]);
+
+  if (slides.length === 0) {
+    return <div className="hero-banner hero-banner-skeleton" />;
+  }
+
+  const movie  = slides[current];
+  const year   = movie.release_date?.split("-")[0];
+  const rating = movie.vote_average?.toFixed(1);
+  const genres = (movie.genre_ids || []).slice(0, 3).map(id => GENRE_MAP[id]).filter(Boolean);
 
   return (
-    <div className="hero-section">
-      <div className="hero-bg" />
-      {hero.backdrop_path && (
+    <div className="hero-banner">
+      {/* Backdrop */}
+      <div className={`hero-backdrop ${fading ? "hero-backdrop--fading" : ""}`}>
         <img
-          className="hero-bg-image"
-          src={`https://image.tmdb.org/t/p/w1280${hero.backdrop_path}`}
-          alt={hero.title}
+          key={movie.id}
+          src={`https://image.tmdb.org/t/p/original${movie.backdrop_path}`}
+          alt={movie.title}
+          className="hero-backdrop-img"
         />
-      )}
-      <div className="hero-overlay" />
-      <div className="hero-overlay-bottom" />
+        <div className="hero-grad-left" />
+        <div className="hero-grad-bottom" />
+      </div>
 
-      <div className="hero-content">
-        <div className="hero-badge">⭐ Featured Today</div>
-        <div className="hero-title">{hero.title}</div>
-        <div className="hero-meta">
-          <div className="hero-rating">⭐ {score}%</div>
-          {year && <div className="hero-year">{year}</div>}
-          <div className="hero-genre">Movie</div>
-        </div>
-        {hero.overview && (
-          <div className="hero-overview">{hero.overview}</div>
+      {/* Content */}
+      <div className="hero-info">
+        {genres.length > 0 && (
+          <div className="hero-genre-tags">
+            {genres.map(g => <span key={g} className="hero-genre-tag">{g}</span>)}
+          </div>
         )}
-        <div className="hero-actions">
+        <h1 className="hero-movie-title">{movie.title}</h1>
+        <div className="hero-movie-meta">
+          <span className="hero-rating-badge">⭐ {rating}</span>
+          {year && <span className="hero-year-badge">{year}</span>}
+        </div>
+        {movie.overview && (
+          <p className="hero-movie-overview">{movie.overview}</p>
+        )}
+        <div className="hero-cta">
           <button
-            className="hero-watch-btn"
-            onClick={() => onAddToList(hero)}
+            className="hero-btn-primary"
+            onClick={() => onOpenPopup(movie, "movie")}
           >
-            ➕ Add to My List
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/>
+            </svg>
+            Add to Watchlist
           </button>
-          <button className="hero-add-btn" onClick={() => onAddToList(hero)}>
-            ℹ️ More Info
+          <button
+            className="hero-btn-secondary"
+            onClick={() => onOpenPopup(movie, "movie")}
+          >
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+            </svg>
+            More Info
           </button>
         </div>
+      </div>
+
+      {/* Slide dots */}
+      <div className="hero-dots">
+        {slides.map((_, i) => (
+          <button
+            key={i}
+            className={`hero-dot ${i === current ? "hero-dot--active" : ""}`}
+            onClick={() => goTo(i, slides.length)}
+            aria-label={`Slide ${i + 1}`}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-// ── MAIN DASHBOARD ────────────────────────────────────────────────────────────
-export default function Dashboard() {
-  const { movies }                      = useMovies();
-  const [tab,         setTab]           = useState("movies");
-  const [browseItems, setBrowseItems]   = useState([]);
-  const [loading,     setLoading]       = useState(false);
-  const [genre,       setGenre]         = useState("all");
-  const [sortBy,      setSortBy]        = useState("popularity.desc");
-  const [page,        setPage]          = useState(1);
-  const [totalPages,  setTotalPages]    = useState(1);
-  const [selected,    setSelected]      = useState(null);
-  const [selectedType,setSelectedType]  = useState("movie");
+// ── HORIZONTAL MOVIE ROW ──────────────────────────────────────
+function MovieRow({ label, accentLabel, endpoint, params = {}, onOpenPopup }) {
+  const [items,   setItems]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
-    if (tab === "mylibrary") return;
-    fetchBrowse();
-  }, [tab, genre, sortBy, page]);
+    setLoading(true);
+    fetchTMDb(endpoint, { ...params, page: 1 }).then(data => {
+      const results = (data?.results || []).filter(m => m.poster_path).slice(0, 20);
+      setItems(results);
+      setLoading(false);
+    });
+  }, [endpoint]);
 
-  const fetchBrowse = async () => {
-    setLoading(true); setBrowseItems([]);
-    const endpoint = tab === "tv" ? "/discover/tv" : "/discover/movie";
-    const params = { sort_by: sortBy, page, "vote_count.gte": 100 };
-    if (genre !== "all") params.with_genres = genre;
-    const data = await fetchTMDb(endpoint, params);
-    if (data?.results) { setBrowseItems(data.results); setTotalPages(Math.min(data.total_pages, 20)); }
-    setLoading(false);
+  const scroll = (dir) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: dir * 800, behavior: "smooth" });
+    }
   };
 
-  const handleTab   = (t) => { setTab(t); setPage(1); setGenre("all"); setSortBy("popularity.desc"); };
-  const handleGenre = (g) => { setGenre(g); setPage(1); };
-  const handleSort  = (s) => { setSortBy(s); setPage(1); };
-  const openPopup   = (item, type) => { setSelected(item); setSelectedType(type); };
-  const alreadyAdded = (id, type) => movies.some(m => m.tmdbId === id && m.type === type);
+  if (!loading && items.length === 0) return null;
+
+  return (
+    <section className="movie-row">
+      <div className="row-header">
+        <h2 className="row-title">
+          {label} <span className="row-title-accent">{accentLabel}</span>
+        </h2>
+        <div className="row-arrows">
+          <button className="row-arrow" onClick={() => scroll(-1)} aria-label="Scroll left">‹</button>
+          <button className="row-arrow" onClick={() => scroll(1)}  aria-label="Scroll right">›</button>
+        </div>
+      </div>
+
+      <div className="row-scroll" ref={scrollRef}>
+        {loading
+          ? Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="row-card-skeleton" style={{ animationDelay: `${i * 0.05}s` }} />
+            ))
+          : items.map(movie => {
+              const title  = movie.title || movie.name || "";
+              const rating = movie.vote_average?.toFixed(1) ?? "–";
+              return (
+                <div
+                  key={movie.id}
+                  className="row-card"
+                  onClick={() => onOpenPopup(movie, "movie")}
+                  title={title}
+                >
+                  <div className="row-card-poster-wrap">
+                    <img
+                      src={posterUrl(movie.poster_path, "w342")}
+                      alt={title}
+                      className="row-card-poster"
+                      loading="lazy"
+                    />
+                    <div className="row-card-hover-overlay">
+                      <div className="row-card-play-btn">▶</div>
+                    </div>
+                    <div className="row-card-rating-badge">⭐ {rating}</div>
+                  </div>
+                  <div className="row-card-title">{title}</div>
+                </div>
+              );
+            })
+        }
+      </div>
+    </section>
+  );
+}
+
+// ── MAIN DASHBOARD ────────────────────────────────────────────
+export default function Dashboard() {
+  const navigate = useNavigate();
+
+  const openPopup = (item, type) => {
+    const resolvedType = type || item.media_type || item.type || (item.name && !item.title ? "tv" : "movie");
+    const tmdbId = item.id || item.tmdbId;
+    if (resolvedType === "tv") {
+      navigate(`/tv/${tmdbId}`);
+    } else {
+      navigate(`/movie/${tmdbId}`);
+    }
+  };
 
   return (
     <>
-      {/* ── HERO (only on movies tab) ── */}
-      {tab === "movies" && (
-        <HeroSection
-          movies={movies}
-          onAddToList={(item) => openPopup(item, "movie")}
+      <HeroBanner onOpenPopup={openPopup} />
+
+      <div className="rows-container">
+        <MovieRow
+          label="Recommended" accentLabel="For You"
+          endpoint="/discover/movie"
+          params={{ sort_by: "vote_average.desc", "vote_count.gte": 1000 }}
+          onOpenPopup={openPopup}
         />
-      )}
-
-      <div className="page-body">
-        <div className="page-header" style={{ marginBottom: 16 }}>
-          <div className="page-title">Discover</div>
-          <div className="page-subtitle">Browse and add movies & TV shows to your collection</div>
-        </div>
-
-        <SearchBar />
-
-        {/* Tabs */}
-        <div className="browse-tabs">
-          {[
-            { key:"movies",    label:"🎬 Movies" },
-            { key:"tv",        label:"📺 TV Shows" },
-            { key:"mylibrary", label:`📚 My Library (${movies.length})` },
-          ].map(({ key, label }) => (
-            <button key={key} className={`browse-tab ${tab===key?"active":""}`} onClick={() => handleTab(key)}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* My Library */}
-        {tab === "mylibrary" && (
-          <MovieGrid
-            movies={movies}
-            emptyIcon="🎬"
-            emptyTitle="Your library is empty"
-            emptyText="Browse Movies or TV Shows and click any poster to add!"
-          />
-        )}
-
-        {/* Browse */}
-        {tab !== "mylibrary" && (
-          <>
-            <div className="browse-filters">
-              <select className="browse-select" value={sortBy} onChange={e => handleSort(e.target.value)}>
-                {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-              <div className="genre-filter-row">
-                {GENRES.map(g => (
-                  <button key={g.id} className={`genre-filter-pill ${genre==g.id?"active":""}`} onClick={() => handleGenre(g.id)}>
-                    {g.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="browse-loading">
-                {[...Array(12)].map((_,i) => <div key={i} className="browse-skeleton" style={{ animationDelay:`${i*0.05}s` }} />)}
-              </div>
-            ) : (
-              <div className="browse-grid">
-                {browseItems.map(item => {
-                  const type   = tab === "tv" ? "tv" : "movie";
-                  const title  = type === "tv" ? item.name  : item.title;
-                  const year   = type === "tv" ? item.first_air_date?.split("-")[0] : item.release_date?.split("-")[0];
-                  const score  = Math.round((item.vote_average || 0) * 10);
-                  const scoreColor = score >= 75 ? "var(--green)" : score >= 50 ? "var(--accent)" : "var(--red)";
-                  const inLib  = alreadyAdded(item.id, type);
-
-                  return (
-                    <div key={item.id} className="browse-card" onClick={() => openPopup(item, type)}>
-                      <div className="browse-poster-wrap">
-                        {item.poster_path
-                          ? <img className="browse-poster" src={posterUrl(item.poster_path)} alt={title} loading="lazy" />
-                          : <div className="browse-poster-placeholder">{type==="tv"?"📺":"🎬"}</div>
-                        }
-                        <div className="browse-score" style={{ borderColor:scoreColor, color:scoreColor }}>
-                          {score}<span style={{ fontSize:"0.5rem" }}>%</span>
-                        </div>
-                        {inLib && (
-                          <div style={{ position:"absolute", top:8, right:8, background:"rgba(16,185,129,0.9)", borderRadius:"50%", width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.85rem" }}>✓</div>
-                        )}
-                        <div className="browse-overlay">
-                          <div style={{ width:"100%", textAlign:"center", color:"white", fontSize:"0.8rem", fontWeight:600, padding:"5px 8px", background:"rgba(245,158,11,0.15)", borderRadius:"8px", border:"1px solid rgba(245,158,11,0.3)", backdropFilter:"blur(8px)" }}>
-                            {inLib ? "✏️ Edit" : "🔍 Details"}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="browse-info">
-                        <div className="browse-title" title={title}>{title}</div>
-                        <div className="browse-meta">{year}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {!loading && browseItems.length === 0 && (
-              <div className="empty">
-                <div className="empty-icon">🔑</div>
-                <div className="empty-title">TMDb API Key needed</div>
-                <div className="empty-sub">Add VITE_TMDB_API_KEY to frontend .env to browse</div>
-              </div>
-            )}
-
-            {totalPages > 1 && !loading && browseItems.length > 0 && (
-              <div className="browse-pagination">
-                <button className="btn btn-ghost btn-sm" disabled={page<=1} onClick={() => setPage(p=>p-1)}>← Prev</button>
-                <span style={{ color:"var(--text2)", fontSize:"0.88rem" }}>Page {page} of {totalPages}</span>
-                <button className="btn btn-ghost btn-sm" disabled={page>=totalPages} onClick={() => setPage(p=>p+1)}>Next →</button>
-              </div>
-            )}
-          </>
-        )}
+        <MovieRow
+          label="Trending"    accentLabel="Now"
+          endpoint="/trending/movie/week"
+          onOpenPopup={openPopup}
+        />
+        <MovieRow
+          label="Popular"     accentLabel="Movies"
+          endpoint="/movie/popular"
+          onOpenPopup={openPopup}
+        />
+        <MovieRow
+          label="Top"         accentLabel="Rated"
+          endpoint="/movie/top_rated"
+          onOpenPopup={openPopup}
+        />
+        <MovieRow
+          label="New"         accentLabel="Releases"
+          endpoint="/movie/now_playing"
+          onOpenPopup={openPopup}
+        />
       </div>
-
-      {selected && (
-        <BrowseDetailPopup item={selected} type={selectedType} onClose={() => setSelected(null)} />
-      )}
     </>
   );
 }

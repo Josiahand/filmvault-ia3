@@ -5,12 +5,12 @@ import { posterUrl } from "../utils/tmdb";
 const TMDB_KEY  = import.meta.env.VITE_TMDB_API_KEY;
 const TMDB_BASE = "https://api.themoviedb.org/3";
 
-const TV_GENRE_MAP = {
-  10759: "Action & Adventure", 16: "Animation", 35: "Comedy",
+const GENRE_MAP = {
+  28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy",
   80: "Crime", 99: "Documentary", 18: "Drama", 10751: "Family",
-  10762: "Kids", 9648: "Mystery", 10763: "News", 10764: "Reality",
-  10765: "Sci-Fi & Fantasy", 10766: "Soap", 10767: "Talk",
-  10768: "War & Politics", 37: "Western",
+  14: "Fantasy", 36: "History", 27: "Horror", 10402: "Music",
+  9648: "Mystery", 10749: "Romance", 878: "Sci-Fi", 53: "Thriller",
+  10752: "War", 37: "Western",
 };
 
 async function fetchTMDb(endpoint, params = {}) {
@@ -22,21 +22,19 @@ async function fetchTMDb(endpoint, params = {}) {
   return res.json();
 }
 
-// ── HORIZONTAL TV ROW ─────────────────────────────────────────
-function TVRow({ label, accentLabel, endpoint, params = {}, onOpenPopup }) {
+// ── HORIZONTAL MOVIE ROW (reused from Dashboard) ──────────────
+function MovieRow({ label, accentLabel, endpoint, params = {}, mediaType = "movie", onOpenPopup }) {
   const [items,   setItems]   = useState([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef(null);
 
   useEffect(() => {
     setLoading(true);
-    fetchTMDb(endpoint, { ...params, page: 1 })
-      .then(data => {
-        const results = (data?.results || []).filter(m => m.poster_path).slice(0, 20);
-        setItems(results);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    fetchTMDb(endpoint, { ...params, page: 1 }).then(data => {
+      const results = (data?.results || []).filter(m => m.poster_path).slice(0, 20);
+      setItems(results);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [endpoint]);
 
   const scroll = (dir) => {
@@ -61,19 +59,19 @@ function TVRow({ label, accentLabel, endpoint, params = {}, onOpenPopup }) {
           ? Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="row-card-skeleton" style={{ animationDelay: `${i * 0.05}s` }} />
             ))
-          : items.map(show => {
-              const title  = show.name || show.title || "";
-              const rating = show.vote_average?.toFixed(1) ?? "–";
+          : items.map(item => {
+              const title  = item.title || item.name || "";
+              const rating = item.vote_average?.toFixed(1) ?? "–";
               return (
                 <div
-                  key={show.id}
+                  key={item.id}
                   className="row-card"
-                  onClick={() => onOpenPopup(show, "tv")}
+                  onClick={() => onOpenPopup(item, mediaType)}
                   title={title}
                 >
                   <div className="row-card-poster-wrap">
                     <img
-                      src={posterUrl(show.poster_path, "w342")}
+                      src={posterUrl(item.poster_path, "w342")}
                       alt={title}
                       className="row-card-poster"
                       loading="lazy"
@@ -93,29 +91,30 @@ function TVRow({ label, accentLabel, endpoint, params = {}, onOpenPopup }) {
   );
 }
 
-// ── TV SHOWS PAGE HERO ────────────────────────────────────────
-function TVHero({ onOpenPopup }) {
+// ── MOVIES PAGE HEADER BANNER ─────────────────────────────────
+function MoviesPageHero({ onOpenPopup }) {
   const [featured, setFeatured] = useState(null);
+  const [fading, setFading]     = useState(false);
 
   useEffect(() => {
-    fetchTMDb("/tv/popular", { page: 1 }).then(data => {
-      const picks = (data?.results || []).filter(s => s.backdrop_path);
+    fetchTMDb("/movie/popular", { page: 1 }).then(data => {
+      const picks = (data?.results || []).filter(m => m.backdrop_path);
       if (picks.length > 0) setFeatured(picks[Math.floor(Math.random() * Math.min(picks.length, 5))]);
     });
   }, []);
 
-  if (!featured) return <div className="hero-banner hero-banner-skeleton" style={{ height: 340 }} />;
+  if (!featured) return <div className="hero-banner hero-banner-skeleton" style={{ height: 320 }} />;
 
-  const year   = featured.first_air_date?.split("-")[0];
+  const year   = featured.release_date?.split("-")[0];
   const rating = featured.vote_average?.toFixed(1);
-  const genres = (featured.genre_ids || []).slice(0, 3).map(id => TV_GENRE_MAP[id]).filter(Boolean);
+  const genres = (featured.genre_ids || []).slice(0, 3).map(id => GENRE_MAP[id]).filter(Boolean);
 
   return (
     <div className="hero-banner" style={{ height: 360 }}>
-      <div className="hero-backdrop">
+      <div className={`hero-backdrop ${fading ? "hero-backdrop--fading" : ""}`}>
         <img
           src={`https://image.tmdb.org/t/p/original${featured.backdrop_path}`}
-          alt={featured.name}
+          alt={featured.title}
           className="hero-backdrop-img"
         />
         <div className="hero-grad-left" />
@@ -127,19 +126,19 @@ function TVHero({ onOpenPopup }) {
             {genres.map(g => <span key={g} className="hero-genre-tag">{g}</span>)}
           </div>
         )}
-        <h1 className="hero-movie-title" style={{ fontSize: "3rem" }}>{featured.name}</h1>
+        <h1 className="hero-movie-title" style={{ fontSize: "3rem" }}>{featured.title}</h1>
         <div className="hero-movie-meta">
           <span className="hero-rating-badge">⭐ {rating}</span>
           {year && <span className="hero-year-badge">{year}</span>}
         </div>
         <div className="hero-cta">
-          <button className="hero-btn-primary" onClick={() => onOpenPopup(featured, "tv")}>
+          <button className="hero-btn-primary" onClick={() => onOpenPopup(featured, "movie")}>
             <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"/>
             </svg>
             Add to Watchlist
           </button>
-          <button className="hero-btn-secondary" onClick={() => onOpenPopup(featured, "tv")}>
+          <button className="hero-btn-secondary" onClick={() => onOpenPopup(featured, "movie")}>
             <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
             </svg>
@@ -151,8 +150,8 @@ function TVHero({ onOpenPopup }) {
   );
 }
 
-// ── MAIN TV SHOWS PAGE ────────────────────────────────────────
-export default function TVShowsPage() {
+// ── MAIN MOVIES PAGE ──────────────────────────────────────────
+export default function MoviesPage() {
   const navigate = useNavigate();
 
   const openPopup = (item, type) => {
@@ -167,38 +166,39 @@ export default function TVShowsPage() {
 
   return (
     <>
-      <TVHero onOpenPopup={openPopup} />
+      <MoviesPageHero onOpenPopup={openPopup} />
 
       <div className="rows-container">
-        <TVRow
-          label="Popular"      accentLabel="TV Shows"
-          endpoint="/tv/popular"
+        <MovieRow
+          label="Popular"      accentLabel="Movies"
+          endpoint="/movie/popular"
           onOpenPopup={openPopup}
         />
-        <TVRow
+        <MovieRow
           label="Top"          accentLabel="Rated"
-          endpoint="/tv/top_rated"
+          endpoint="/movie/top_rated"
           onOpenPopup={openPopup}
         />
-        <TVRow
-          label="Trending"     accentLabel="This Week"
-          endpoint="/trending/tv/week"
+        <MovieRow
+          label="Now"          accentLabel="Playing"
+          endpoint="/movie/now_playing"
           onOpenPopup={openPopup}
         />
-        <TVRow
-          label="Airing"       accentLabel="Today"
-          endpoint="/tv/airing_today"
+        <MovieRow
+          label="Upcoming"     accentLabel="Movies"
+          endpoint="/movie/upcoming"
           onOpenPopup={openPopup}
         />
-        <TVRow
-          label="On The"       accentLabel="Air"
-          endpoint="/tv/on_the_air"
+        <MovieRow
+          label="Action"       accentLabel="Hits"
+          endpoint="/discover/movie"
+          params={{ with_genres: "28", sort_by: "popularity.desc" }}
           onOpenPopup={openPopup}
         />
-        <TVRow
-          label="Drama"        accentLabel="Series"
-          endpoint="/discover/tv"
-          params={{ with_genres: "18", sort_by: "popularity.desc" }}
+        <MovieRow
+          label="Comedy"       accentLabel="Films"
+          endpoint="/discover/movie"
+          params={{ with_genres: "35", sort_by: "popularity.desc" }}
           onOpenPopup={openPopup}
         />
       </div>
