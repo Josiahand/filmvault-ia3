@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMovies } from "../context/MovieContext";
 import { posterUrl } from "../utils/tmdb";
 
-const TMDB_KEY  = import.meta.env.VITE_TMDB_API_KEY;
+const TMDB_KEY  = import.meta.env.VITE_TMDB_API_KEY || "0ca631e5b6da1c2581df9bc13a674c86";
 const TMDB_BASE = "https://api.themoviedb.org/3";
 
 async function tmdb(endpoint, params = {}) {
